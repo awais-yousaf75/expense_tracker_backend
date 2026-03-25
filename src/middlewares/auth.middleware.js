@@ -33,3 +33,34 @@ export async function authMiddleware(req, res, next) {
     });
   }
 }
+
+export async function isAdmin(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        message: "No token provided",
+      });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, config.JWT_SECRET);
+
+    console.log(decoded.role);
+    req.role = decoded.role;
+
+    if (req.role !== "admin") {
+      return res.status(409).json({
+        message: "Access denied admins only.",
+      });
+    }
+
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      message: "Error occured",
+      error: error.message,
+    });
+  }
+}

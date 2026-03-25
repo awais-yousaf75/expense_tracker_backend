@@ -34,5 +34,13 @@ authRouter.get("/protected", authMiddleware.authMiddleware, (req, res) => {
     user: req.user,
   });
 });
+/**
+ * GET /api/auth/admin-only
+ */
+authRouter.get("/admin-only", authMiddleware.isAdmin, (req, res) => {
+  res.json({
+    message: "Welcome Admin 😎",
+  });
+});
 
 export default authRouter;

@@ -6,9 +6,9 @@ import blacklistModel from "../models/blacklist.model.js";
 
 export async function registerUser(req, res) {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, role } = req.body;
 
-    if (!username || !email || !password) {
+    if (!username || !email || !password || !role) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
@@ -21,11 +21,12 @@ export async function registerUser(req, res) {
       });
     }
 
-    const user = await userModel.create({ username, email, password });
+    const user = await userModel.create({ username, email, password, role });
 
     const refreshToken = jwt.sign(
       {
         userId: user._id,
+        role: user.role,
       },
       config.JWT_SECRET,
       {
@@ -36,6 +37,7 @@ export async function registerUser(req, res) {
     const accessToken = jwt.sign(
       {
         userId: user._id,
+        role: user.role,
       },
       config.JWT_SECRET,
       {
@@ -55,6 +57,7 @@ export async function registerUser(req, res) {
       user: {
         username: user.username,
         email: user.email,
+        role: user.role,
       },
       accessToken,
     });
@@ -92,6 +95,7 @@ export async function loginUser(req, res) {
     const refreshToken = jwt.sign(
       {
         userId: user._id,
+        role: user.role,
       },
       config.JWT_SECRET,
       {
@@ -102,6 +106,7 @@ export async function loginUser(req, res) {
     const accessToken = jwt.sign(
       {
         userId: user._id,
+        role: user.role,
       },
       config.JWT_SECRET,
       {
