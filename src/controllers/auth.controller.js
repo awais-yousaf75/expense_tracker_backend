@@ -2,6 +2,7 @@ import userModel from "../models/user.model.js";
 import jwt from "jsonwebtoken";
 import config from "../config/config.js";
 import bcrypt from "bcrypt";
+import blacklistModel from "../models/blacklist.model.js";
 
 export async function registerUser(req, res) {
   try {
@@ -131,45 +132,130 @@ export async function loginUser(req, res) {
 }
 
 export async function refreshToken(req, res) {
-  const refreshToken = req.cookies.refreshToken;
+  try {
+    const refreshToken = req.cookies.refreshToken;
 
-  if (!refreshToken) {
-    return res.status(400).json({
-      message: "Refresh token not found.",
+    if (!refreshToken) {
+      return res.status(400).json({
+        message: "Refresh token not found.",
+      });
+    }
+
+    // check blacklist
+    const isBlackListed = await blacklistModel.findOne({ token: refreshToken });
+
+    if (isBlackListed) {
+      return res.status(401).json({
+        message: "Token is blacklisted. Please login again.",
+      });
+    }
+
+    let decoded;
+
+    try {
+      decoded = jwt.verify(refreshToken, config.JWT_SECRET);
+    } catch (error) {
+      return res.status(401).json({
+        message: "Invalid or expired refresh token",
+      });
+    }
+
+    // rotate (blacklist old one)
+    await blacklistModel.create({ token: refreshToken });
+
+    const accessToken = jwt.sign(
+      {
+        userId: decoded.userId,
+      },
+      config.JWT_SECRET,
+      {
+        expiresIn: "15m",
+      },
+    );
+
+    const newRefreshToken = jwt.sign(
+      {
+        userId: decoded.userId,
+      },
+      config.JWT_SECRET,
+      {
+        expiresIn: "7d",
+      },
+    );
+
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.status(200).json({
+      message: "Access token refreshed successfully.",
+      accessToken,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Something went wrong",
+      error: error.message,
     });
   }
+}
 
-  const decoded = jwt.verify(refreshToken, config.JWT_SECRET);
+export async function logout(req, res) {
+  try {
+    const token = req.cookies.refreshToken;
 
-  const accessToken = jwt.sign(
-    {
-      id: decoded.id,
-    },
-    config.JWT_SECRET,
-    {
-      expiresIn: "15m",
-    },
-  );
+    if (!token) {
+      return res.status(400).json({
+        message: "Refresh token not found.",
+      });
+    }
 
-  const newRefreshToken = jwt.sign(
-    {
-      id: decoded.id,
-    },
-    config.JWT_SECRET,
-    {
-      expiresIn: "7d",
-    },
-  );
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+    });
 
-  res.cookie("refreshToken", newRefreshToken, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "strict",
-    expiresIn: 7 * 24 * 60 * 60 * 1000, // 7 days
-  });
+    await blacklistModel.create({ token });
 
-  res.status(200).json({
-    message: "Access token refreshed successfully.",
-    accessToken,
-  });
+    res.status(200).json({
+      message: "Logged out successfully.",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Logout failed",
+      error: error.message,
+    });
+  }
+}
+
+export async function get_me(req, res) {
+  try {
+    const token =
+      req.headers.authorization?.split(" ")[1] || req.cookies.refreshToken;
+
+    if (!token) {
+      return res.status(400).json({
+        message: "Token not found.",
+      });
+    }
+
+    const decoded = jwt.verify(token, config.JWT_SECRET);
+    const user = await userModel.findById(decoded.userId);
+
+    res.status(200).json({
+      message: "User found.",
+      user: {
+        username: user.username,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Get-me failed.",
+      error: error.message,
+    });
+  }
 }
