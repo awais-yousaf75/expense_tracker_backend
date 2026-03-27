@@ -2,10 +2,33 @@ import userModel from "../models/user.model.js";
 
 export async function getAllUsers(req, res) {
   try {
-    const users = await userModel.find().select("-password");
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
+    const search = req.query.search || "";
+    const skip = (page - 1) * limit;
+    const searchQuery = search
+      ? {
+          $or: [
+            { username: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+          ],
+        }
+      : {};
+
+    const users = await userModel
+      .find(searchQuery)
+      .select("-password")
+      .skip(skip)
+      .limit(limit);
+
+    const totalUsers = await userModel.countDocuments(searchQuery);
+    const totalPages = Math.ceil(totalUsers / limit);
+
     res.status(200).json({
-      message: "All user fetched successfully.",
-      count: users.length,
+      message: "Users fetched successfully",
+      currentPage: page,
+      totalPages,
+      totalUsers,
       users,
     });
   } catch (error) {
