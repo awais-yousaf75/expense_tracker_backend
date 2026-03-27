@@ -171,6 +171,7 @@ export async function refreshToken(req, res) {
     const accessToken = jwt.sign(
       {
         userId: decoded.userId,
+        role: decoded.role,
       },
       config.JWT_SECRET,
       {
@@ -181,12 +182,15 @@ export async function refreshToken(req, res) {
     const newRefreshToken = jwt.sign(
       {
         userId: decoded.userId,
+        role: decoded.role,
       },
       config.JWT_SECRET,
       {
         expiresIn: "7d",
       },
     );
+
+    console.log(decoded.role);
 
     res.cookie("refreshToken", newRefreshToken, {
       httpOnly: true,
