@@ -27,6 +27,10 @@ const userSchema = new mongoose.Schema({
     enum: ["user", "admin"],
     default: "user",
   },
+  balance: {
+    type: Number,
+    default: 0, // Initially zero
+  },
 });
 
 userSchema.pre("save", async function () {

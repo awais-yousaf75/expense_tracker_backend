@@ -36,4 +36,13 @@ expenseRouter.delete(
   authMiddleware.authMiddleware,
   expenseController.deleteExpense,
 );
+/**
+ * POST /api/expense/addFunds
+ */
+expenseRouter.post(
+  "/add-funds",
+  authMiddleware.authMiddleware,
+  expenseController.addFunds,
+);
+
 export default expenseRouter;

@@ -1,4 +1,5 @@
 import expenseModel from "../models/expense.model.js";
+import userModel from "../models/user.model.js";
 
 export async function createExpense(req, res) {
   try {
@@ -9,6 +10,15 @@ export async function createExpense(req, res) {
         message: "Title and amount are required",
       });
     }
+
+    if (req.user.balance < amount) {
+      return res.status(400).json({
+        message: "Insufficient balance",
+      });
+    }
+
+    req.user.balance -= amount;
+    await req.user.save();
 
     const expense = await expenseModel.create({
       userId: req.user._id,
@@ -137,5 +147,23 @@ export async function deleteExpense(req, res) {
       message: "Failed to delete expense",
       error: error.message,
     });
+  }
+}
+
+export async function addFunds(req, res) {
+  try {
+    const { amount } = req.body;
+    req.user.balance += amount;
+    console.log(req.user.balance);
+    await userModel.findByIdAndUpdate(req.user._id, {
+      $inc: { balance: amount },
+    });
+
+    res.status(200).json({
+      message: "Funds added successfully",
+      balance: req.user.balance,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 }

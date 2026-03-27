@@ -256,10 +256,7 @@ export async function get_me(req, res) {
 
     res.status(200).json({
       message: "User found.",
-      user: {
-        username: user.username,
-        email: user.email,
-      },
+      user,
     });
   } catch (error) {
     res.status(500).json({
