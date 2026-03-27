@@ -32,11 +32,38 @@ export async function createExpense(req, res) {
 
 export async function getExpenses(req, res) {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
+    const search = req.query.search || "";
+    const skip = (page - 1) * limit;
+    const searchQuery = search
+      ? {
+          $or: [
+            { title: { $regex: search, $options: "i" } },
+            { category: { $regex: search, $options: "i" } },
+          ],
+        }
+      : {};
+
+    const filter = {
+      userId: req.user._id,
+      ...searchQuery,
+    };
+
     const expenses = await expenseModel
-      .find({ userId: req.user._id })
-      .sort({ date: -1 });
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await expenseModel.countDocuments(filter);
+
     res.status(200).json({
       message: "All expenses of current user.",
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
       count: expenses.length,
       expenses,
     });
